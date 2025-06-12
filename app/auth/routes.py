@@ -6,7 +6,8 @@ from jose import JWTError, jwt
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
-from app.utils.dependency import get_db
+from app.utils.dependency import get_db, get_current_user
+from jose.exceptions import JWTError as JoseJWTError 
 import logging
 
 
@@ -23,103 +24,143 @@ def get_db():
     finally:
         db.close()
 
+#create user & admin
 @router.post("/signup", status_code=201)
 def signup(data: schemas.Signup, db: Session = Depends(get_db)):
-    user=db.query(models.User).filter_by(email=data.email).first()
+    try:
+        user=db.query(models.User).filter_by(email=data.email).first()
 
-    if (user):
-        raise HTTPException(status_code=400, detail="Email already exists")
+        if (user):
+            raise HTTPException(status_code=400, detail="Email already exists")
+        
+        hashed_pw = utils.hash_password(data.password)
+        user = models.User(name=data.name, email=data.email, hashed_password=hashed_pw, role=data.role)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info(f"User created successfully: {data.email}")
+        return {"message": "User created successfully"}
     
-    hashed_pw = utils.hash_password(data.password)
-    user = models.User(name=data.name, email=data.email, hashed_password=hashed_pw, role=data.role)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return {"message": "User created successfully"}
+    except HTTPException as http_exc:
+         raise http_exc
+     
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in signup: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
 
+##login user & admin
 @router.post("/signin", response_model=schemas.Token)
 def signin(data: schemas.Signin, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter_by(email=data.email).first()
+    try:
+        user = db.query(models.User).filter_by(email=data.email).first()
 
-    if not user or not utils.verify_password(data.password, user.hashed_password):
-        logger.warning(f"Failed login attempt for email: {data.email}")
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not user or not utils.verify_password(data.password, user.hashed_password):
+            logger.warning(f"Failed login attempt for email: {data.email}")
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        logger.info(f" Successful login for email: {data.email}")
+        payload = {"sub": user.email, "role": user.role}
+        access_token = utils.create_access_token(payload)
+        refresh_token = utils.create_refresh_token(payload)
+
+        return {"access_token": access_token, "refresh_token": refresh_token}
     
-    logger.info(f" Successful login for email: {data.email}")
-    payload = {"sub": user.email, "role": user.role}
-    access_token = utils.create_access_token(payload)
-    refresh_token = utils.create_refresh_token(payload)
+    except HTTPException as http_exc:
+         raise http_exc
+     
+    except Exception as e:
+        logger.error(f"Error in signin: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-    return {"access_token": access_token, "refresh_token": refresh_token}
-
+## forget password    
 @router.post("/forgot-password")
 def forgot_password(data: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        user = db.query(models.User).filter_by(email=data.email).first()
+        if (not user):
+            logger.warning("Email not found for password reset")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Email not found. Please check and try again.")
+        
+        reset_token = utils.create_and_store_password_reset_token(db, user)
 
-    user = db.query(models.User).filter_by(email=data.email).first()
-    if (not user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Email not found. Please check and try again.")
+        ## Send the reset token via mail us SMTP
+        email_utils.send_reset_email(user.email, reset_token)
+        logger.info("Reset token sent to email") 
+        return {"message": "If the email is registered, a reset token has been sent to your email."}
     
-    ##reset_token = utils.create_password_reset_token(user.email)
-    ##replace
-    reset_token = utils.create_and_store_password_reset_token(db, user)
+    except HTTPException as http_exc:
+         raise http_exc
+     
+    
+    except Exception as e:
+        db.rollback(f"Error in Forget password: {str(e)}")
+        logger.error()
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-    ## Send the reset token via mail us SMTP
-    email_utils.send_reset_email(user.email, reset_token)
 
-    return {"message": "If the email is registered, a reset token has been sent to your email."}
-
-# @router.post("/reset-password")
-# def reset_password(data: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
-#     email = utils.verify_password_reset_token(data.token)
-#     if email is None:
-#         raise HTTPException(status_code=400, detail="Invalid or expired token")
-#     user = db.query(models.User).filter_by(email=email).first()
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     hashed_pw = utils.hash_password(data.new_password)
-#     user.hashed_password = hashed_pw
-#     db.commit()
-#     return {"message": "Password reset successful"}
-
-#replace
+# reset password 
 @router.post("/reset-password")
 def reset_password(data: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
-    db_token = db.query(models.PasswordResetToken).filter_by(token=data.token).first()
+    try:
+        db_token = db.query(models.PasswordResetToken).filter_by(token=data.token).first()
 
-    if not db_token:
-        raise HTTPException(status_code=400, detail="Invalid token")
+        if not db_token:
+            logger.warning("Invalid reset token used")
+            raise HTTPException(status_code=400, detail="Invalid token")
 
-    if db_token.used:
-        raise HTTPException(status_code=400, detail="Token already used")
+        if db_token.used:
+            logger.warning("Reset token already used")
+            raise HTTPException(status_code=400, detail="Token already used")
 
-    if db_token.expiration_time.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Token expired")
+        if db_token.expiration_time.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            logger.warning("Reset token expired")
+            raise HTTPException(status_code=400, detail="Token expired")
 
-    user = db_token.user
-    hashed_pw = utils.hash_password(data.new_password)
-    user.hashed_password = hashed_pw
+        user = db_token.user
+        hashed_pw = utils.hash_password(data.new_password)
+        user.hashed_password = hashed_pw
 
-    # Mark token as used
-    db_token.used = True
-    db.commit()
+        # Mark token as used
+        db_token.used = True
+        db.commit()
+        logger.info("Password reset successfully")
+        return {"message": "Password reset successful"}
+    
+    except HTTPException as http_exc:
+         raise http_exc
+      
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error in reset-password: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
-    return {"message": "Password reset successful"}
-
+## refresh token
 @router.post("/refresh-token", response_model=schemas.Token)
 def refresh_token(data: schemas.RefreshTokenRequest):
     try:
         payload = utils.decode_token(data.refresh_token)
+
+        if payload is None or not isinstance(payload, dict):
+            logger.warning("Invalid refresh token: payload is None or invalid format")
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        
         email = payload.get("sub")
         role = payload.get("role")
 
+        logger.info("Refresh token")  
         new_access_token = utils.create_access_token({"sub": email, "role": role})
         new_refresh_token = utils.create_refresh_token({"sub": email, "role": role})
 
         return {"access_token": new_access_token, "refresh_token": new_refresh_token}
     
-    except jwt.JWTError:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-
+    except HTTPException as http_exc:
+         raise http_exc
+    
+    except Exception as e:
+        logger.error(f"Error in refresh-token: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 # Get Current User from JWT
 def get_current_user(
@@ -134,6 +175,7 @@ def get_current_user(
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         return user
+    
     except JWTError:
         raise HTTPException(status_code=401, detail="Token error")
 

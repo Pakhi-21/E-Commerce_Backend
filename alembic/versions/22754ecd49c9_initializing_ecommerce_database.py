@@ -1,8 +1,8 @@
-"""Initializing ecommerce database
+"""Initializing Ecommerce Database
 
-Revision ID: 883bef451c1e
+Revision ID: 22754ecd49c9
 Revises: 
-Create Date: 2025-06-11 23:02:49.417659
+Create Date: 2025-06-12 19:02:37.337860
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '883bef451c1e'
+revision: str = '22754ecd49c9'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

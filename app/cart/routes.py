@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException 
 from sqlalchemy.orm import Session
 from app.cart import models, schemas
 from app.utils.dependency import get_db, require_user
 from app.products.models import Product
+import logging
+
+logger = logging.getLogger("ecommerce_logger")
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
@@ -13,19 +16,38 @@ def add_to_cart(
     db: Session = Depends(get_db),
     user=Depends(require_user)
 ):
-    product = db.query(Product).filter_by(id=data.product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+    try:
+        product = db.query(Product).filter_by(id=data.product_id).first()
+        if not product:
+            logger.warning(f"Add to cart failed: Product not found (ID: {data.product_id})")
+            raise HTTPException(status_code=404, detail="Product not found")
 
-    item = db.query(models.CartItem).filter_by(user_id=user.id, product_id=data.product_id).first()
-    if item:
-        item.quantity += data.quantity
-    else:
-        item = models.CartItem(user_id=user.id, **data.dict())
-        db.add(item)
-    db.commit()
-    db.refresh(item)
-    return item
+        if product.stock == 0:
+            raise HTTPException(status_code=400, detail="Product is out of stock")
+
+        item = db.query(models.CartItem).filter_by(user_id=user.id, product_id=data.product_id).first()
+        if item:
+            if item.quantity + data.quantity > product.stock:
+                raise HTTPException(status_code=400, detail="Not enough stock available")
+            item.quantity += data.quantity
+            logger.info(f"Updated cart item quantity for user {user.id}, product {data.product_id}")
+        else:
+            if data.quantity > product.stock:
+                raise HTTPException(status_code=400, detail="Not enough stock available")
+            item = models.CartItem(user_id=user.id, **data.model_dump())
+            db.add(item)
+            logger.info(f"Added new item to cart for user {user.id}, product {data.product_id}")
+
+        db.commit()
+        db.refresh(item)
+        return item
+
+    except HTTPException as http_exc:
+        raise http_exc
+
+    except Exception as e:
+        logger.error(f"Error adding to cart: {str(e)}")
+        raise HTTPException(status_code=500, detail="Something went wrong while adding to cart")
 
 
 @router.get("/", response_model=list[schemas.CartItemOut])
@@ -33,7 +55,13 @@ def view_cart(
     db: Session = Depends(get_db),
     user=Depends(require_user)
 ):
-    return db.query(models.CartItem).filter_by(user_id=user.id).all()
+    try:
+        cart_items = db.query(models.CartItem).filter_by(user_id=user.id).all()
+        logger.info(f"Fetched cart items for user {user.id}")
+        return cart_items
+    except Exception as e:
+        logger.error(f"Error viewing cart for user {user.id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Something went wrong while fetching the cart")
 
 
 @router.delete("/{product_id}")
@@ -42,12 +70,23 @@ def remove_item(
     db: Session = Depends(get_db),
     user=Depends(require_user)
 ):
-    item = db.query(models.CartItem).filter_by(user_id=user.id, product_id=product_id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Products not in cart")
-    db.delete(item)
-    db.commit()
-    return {"message": "Product removed"}
+    try:
+        item = db.query(models.CartItem).filter_by(user_id=user.id, product_id=product_id).first()
+        if not item:
+            logger.warning(f"Remove failed: Item not found in cart (User: {user.id}, Product: {product_id})")
+            raise HTTPException(status_code=404, detail="Item not in cart")
+
+        db.delete(item)
+        db.commit()
+        logger.info(f"Removed item from cart (User: {user.id}, Product: {product_id})")
+        return {"message": "Item removed"}
+
+    except HTTPException as http_exc:
+        raise http_exc
+
+    except Exception as e:
+        logger.error(f"Error removing item from cart: {str(e)}")
+        raise HTTPException(status_code=500, detail="Something went wrong while removing the item")
 
 
 @router.put("/{product_id}", response_model=schemas.CartItemOut)
@@ -57,11 +96,28 @@ def update_quantity(
     db: Session = Depends(get_db),
     user=Depends(require_user)
 ):
-    item = db.query(models.CartItem).filter_by(user_id=user.id, product_id=product_id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not in cart")
-    item.quantity = data.quantity
-    db.commit()
-    db.refresh(item)
-    return item
+    try:
+        item = db.query(models.CartItem).filter_by(user_id=user.id, product_id=product_id).first()
+        if not item:
+            logger.warning(f"Update failed: Item not found in cart (User: {user.id}, Product: {product_id})")
+            raise HTTPException(status_code=404, detail="Item not in cart")
 
+        product = db.query(Product).filter_by(id=product_id).first()
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        if data.quantity > product.stock:
+            raise HTTPException(status_code=400, detail="Not enough stock available")
+
+        item.quantity = data.quantity
+        db.commit()
+        db.refresh(item)
+        logger.info(f"Updated quantity for cart item (User: {user.id}, Product: {product_id})")
+        return item
+
+    except HTTPException as http_exc:
+        raise http_exc
+
+    except Exception as e:
+        logger.error(f"Error updating quantity: {str(e)}")
+        raise HTTPException(status_code=500, detail="Something went wrong while updating the item")
