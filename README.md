@@ -4,9 +4,9 @@ This is the backend REST API for an E-commerce platform, built using FastAPI. It
 
 ---
 
-## ✅ Features
+## Features
 
-### 🔐 Authentication & Authorization
+### Authentication & Authorization
 - User registration & login with JWT (Access + Refresh tokens)
 - Role-based access control (`admin`, `user`)
 - Secure password hashing with bcrypt
