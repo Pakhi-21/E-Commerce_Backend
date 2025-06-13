@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, field_validator
 from enum import Enum
 import re
 
@@ -11,9 +11,21 @@ class Signup(BaseModel):
     email: EmailStr
     password: str
     role: RoleEnum = RoleEnum.user
+    
+    #name validator
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError("Name cannot be empty")
+        if not (2 <= len(v) <= 100):
+            raise ValueError("Name must be between 2 and 100 characters long")
+        return v
 
     ## create custom strong password validator
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def strong_password(cls, v):
         pattern = re.compile(
             r'^(?=.*[a-z])'      
@@ -42,7 +54,8 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
 
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def strong_password(cls, v):
         pattern = re.compile(
             r'^(?=.*[a-z])'      

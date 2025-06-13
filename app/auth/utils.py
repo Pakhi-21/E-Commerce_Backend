@@ -20,16 +20,12 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# def create_password_reset_token(email: str, expires_minutes: int = 10):
-#     expire = datetime.utcnow() + timedelta(minutes=expires_minutes)
-#     to_encode = {"sub": email, "exp": expire}
-#     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-## replace
 def create_and_store_password_reset_token(db, user):
     token = secrets.token_urlsafe(32)  # Secure random token
     expiration = datetime.now(timezone.utc) + timedelta(minutes=5)
 
+    #store into a database
     reset_token = models.PasswordResetToken(
         user_id=user.id,
         token=token,

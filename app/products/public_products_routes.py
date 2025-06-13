@@ -39,10 +39,7 @@ def list_products(
     return query.offset(offset).limit(page_size).all()
 
 @router.get("/search", response_model=list[ProductOut])
-def search_products(
-    keyword: str = Query(..., min_length=1),
-    db: Session = Depends(get_db)
-):
+def search_products(keyword: str = Query(..., min_length=1),db: Session = Depends(get_db)):
     logger.info(f"Searching products with keyword: {keyword}")
     keyword = keyword.lower()
     query = db.query(Product).filter(
@@ -56,8 +53,10 @@ def search_products(
 
 @router.get("/{id}", response_model=ProductOut)
 def get_product_detail(id: int, db: Session = Depends(get_db)):
+
     logger.info(f"Fetching product with ID: {id}")
     product = db.query(Product).filter_by(id=id).first()
+
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product

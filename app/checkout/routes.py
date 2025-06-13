@@ -30,7 +30,8 @@ def checkout(db: Session = Depends(get_db), user=Depends(require_user)):
             product.stock -= item.quantity
             subtotal = item.quantity * product.price
             total += subtotal
-
+            
+            ## creating order in DB
             order_item = OrderItem(
                 order_id=order.id,
                 product_id=item.product_id,
@@ -46,7 +47,7 @@ def checkout(db: Session = Depends(get_db), user=Depends(require_user)):
         db.commit()
 
         return {
-            "Message": "Order Placed successfully",
+            "Message": "Order Placed Successfully",
             "Order_id": order.id,
             "Total Amount": total,
             "Status": order.status.value

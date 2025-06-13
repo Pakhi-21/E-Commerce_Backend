@@ -13,23 +13,24 @@ class OrderStatus(str, Enum):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     total_amount = Column(Float)
     status = Column(SqlEnum(OrderStatus), default=OrderStatus.PENDING)
     created_at = Column(DateTime(timezone=True), default=func.now())
     
     items = relationship("OrderItem", back_populates="order")
+    user = relationship("User", back_populates="orders")
 
 class OrderItem(Base):
     __tablename__ = "order_items"
     id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey("orders.id"))
-    product_id = Column(Integer)
+    order_id = Column(Integer, ForeignKey("orders.id", ondelete="CASCADE"))
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
     product_name = Column(String)
     quantity = Column(Integer)
     price_at_purchase = Column(Float)
 
     order = relationship("Order", back_populates="items")
-    
+    product = relationship("Product", passive_deletes=True)
 
 

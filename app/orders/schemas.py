@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 class OrderItemOut(BaseModel):
-    product_id: int
+    product_id: int | None
     product_name: str  
     quantity: int
     price_at_purchase: float

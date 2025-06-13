@@ -11,12 +11,15 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 
 @router.get("/", response_model=list[schemas.OrderOut])
 def order_history(db: Session = Depends(get_db), user=Depends(require_user)):
+
     try:
         orders = db.query(models.Order).filter_by(user_id=user.id).all()
         logger.info(f"Fetched order history for user {user.id}")
         return orders
+    
     except Exception as e:
-        logger.error(f"Error fetching order history for user {user.id}: {str(e)}")
+
+        logger.error(f"Error : fetching order history for user: {str(e)}")
         raise HTTPException(status_code=500, detail="Something went wrong while fetching order history")
 
 

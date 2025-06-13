@@ -15,13 +15,14 @@ class User(Base):
     hashed_password = Column(String)
     role = Column(Enum(RoleEnum), default="user")
 
-    reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete")
+    reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     token = Column(String, nullable=False, unique=True)
     expiration_time = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
