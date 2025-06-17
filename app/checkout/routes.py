@@ -7,7 +7,7 @@ from app.orders.models import Order, OrderItem, OrderStatus
 
 router = APIRouter(prefix="/checkout", tags=["Checkout"])
 
-
+##  endpoint of checkout where cart gets processed into an order
 @router.post("/")
 def checkout(db: Session = Depends(get_db), user=Depends(require_user)):
     try:
@@ -21,7 +21,8 @@ def checkout(db: Session = Depends(get_db), user=Depends(require_user)):
         order = Order(user_id=user.id, total_amount=0, status=OrderStatus.PENDING)
         db.add(order)
         db.flush()
-
+        
+        #Loop through Cart Items and process them
         for item in cart_items:
             product = db.query(Product).filter_by(id=item.product_id).first()
             if not product or product.stock < item.quantity:
@@ -43,7 +44,7 @@ def checkout(db: Session = Depends(get_db), user=Depends(require_user)):
 
         order.total_amount = total
         order.status = OrderStatus.PAID  # Update status after successful payment
-        db.query(CartItem).filter_by(user_id=user.id).delete()
+        db.query(CartItem).filter_by(user_id=user.id).delete() ## clear the cart
         db.commit()
 
         return {

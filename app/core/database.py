@@ -11,4 +11,5 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread
 # Connect to the database and provide a session for interacting with it
 SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)
 
+# Base class for models
 Base = declarative_base()

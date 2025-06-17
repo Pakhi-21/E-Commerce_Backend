@@ -18,6 +18,7 @@ class Order(Base):
     status = Column(SqlEnum(OrderStatus), default=OrderStatus.PENDING)
     created_at = Column(DateTime(timezone=True), default=func.now())
     
+    #relationship
     items = relationship("OrderItem", back_populates="order")
     user = relationship("User", back_populates="orders")
 
@@ -29,7 +30,8 @@ class OrderItem(Base):
     product_name = Column(String)
     quantity = Column(Integer)
     price_at_purchase = Column(Float)
-
+    
+    #relationship
     order = relationship("Order", back_populates="items")
     product = relationship("Product", passive_deletes=True)
 

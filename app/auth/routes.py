@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.auth import schemas, utils, models, email_utils
 from app.core.database import SessionLocal
@@ -6,7 +6,7 @@ from jose import JWTError, jwt
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
-from app.utils.dependency import get_db, get_current_user
+from app.utils.dependency import get_db, get_current_user, require_admin
 from jose.exceptions import JWTError as JoseJWTError 
 import logging
 
@@ -88,12 +88,11 @@ def forgot_password(data: schemas.ForgotPasswordRequest, db: Session = Depends(g
         ## Send the reset token via mail us SMTP
         email_utils.send_reset_email(user.email, reset_token)
         logger.info("Reset token sent to email") 
-        return {"message": "If the email is registered, a reset token has been sent to your email."}
+        return {"message": "Reset token mail send Successfully."}
     
     except HTTPException as http_exc:
          raise http_exc
      
-    
     except Exception as e:
         db.rollback(f"Error in Forget password: {str(e)}")
         logger.error()
@@ -162,25 +161,3 @@ def refresh_token(data: schemas.RefreshTokenRequest):
         logger.error(f"Error in refresh-token: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-# Get Current User from JWT
-def get_current_user(
-    token: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: Session = Depends(get_db)
-):
-    try:
-        payload = jwt.decode(token.credentials, utils.SECRET_KEY, algorithms=[utils.ALGORITHM])
-        email = payload.get("sub")
-        role = payload.get("role")
-        user = db.query(models.User).filter_by(email=email).first()
-        if user is None:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token error")
-
-# Admin-only dependency
-def require_admin(current_user: models.User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admins only")
-    return current_user

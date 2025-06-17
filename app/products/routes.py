@@ -12,51 +12,7 @@ logger = logging.getLogger("ecommerce_logger")
 router = APIRouter(prefix="/admin/products", tags=["Admin-Products"])
 
 
-
-# @router.post("/", response_model=schemas.ProductOut)
-# def create_product(data: schemas.ProductCreate, db: Session = Depends(get_db), _ = Depends(require_admin)):
-#     product = models.Product(**data.model_dump())
-#     db.add(product)
-#     db.commit()
-#     db.refresh(product)
-#     return product
-
-# @router.get("/", response_model=list[schemas.ProductOut])
-# def get_products(skip: int = 0, limit: int = 10, db: Session = Depends(get_db), _ = Depends(require_admin)):
-#     return db.query(models.Product).offset(skip).limit(limit).all()
-
-# @router.get("/{id}", response_model=schemas.ProductOut)
-# def get_product(id: int, db: Session = Depends(get_db), _ = Depends(require_admin)):
-#     product = db.query(models.Product).filter_by(id=id).first()
-#     if not product:
-#         raise HTTPException(status_code=404, detail="Product not found")
-#     return product
-
-# @router.put("/{id}", response_model=schemas.ProductOut)
-# def update_product(id: int, data: schemas.ProductUpdate, db: Session = Depends(get_db), _ = Depends(require_admin)):
-#     product = db.query(models.Product).filter_by(id=id).first()
-#     if not product:
-#         raise HTTPException(status_code=404, detail="Product not found")
-    
-#     update_data = data.dict(exclude_unset=True)
-#     for key, value in update_data.items():
-#         setattr(product, key, value)
-        
-#     db.commit()
-#     db.refresh(product)
-#     return product
-
-
-# @router.delete("/{id}")
-# def delete_product(id: int, db: Session = Depends(get_db), _ = Depends(require_admin)):
-#     product = db.query(models.Product).filter_by(id=id).first()
-#     if not product:
-#         raise HTTPException(status_code=404, detail="Product not found")
-#     db.delete(product)
-#     db.commit()
-#     return {"message": "Product deleted"}
-
-
+## endpoint for create a product
 @router.post("/", response_model=schemas.ProductOut)
 def create_product(data: schemas.ProductCreate, db: Session = Depends(get_db), _ = Depends(require_admin)):
     try:
@@ -74,7 +30,7 @@ def create_product(data: schemas.ProductCreate, db: Session = Depends(get_db), _
         logger.error(f"Failed to create product: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create product")
 
-
+#endpoint for view all product
 @router.get("/", response_model=list[schemas.ProductOut])
 def get_products(skip: int = 0, limit: int = 10, db: Session = Depends(get_db), _ = Depends(require_admin)):
     try:
@@ -86,7 +42,7 @@ def get_products(skip: int = 0, limit: int = 10, db: Session = Depends(get_db), 
         raise HTTPException(status_code=500, detail="Failed to fetch products")
 
 
-
+## endpoint for view a product by id
 @router.get("/{id}", response_model=schemas.ProductOut)
 def get_product(id: int, db: Session = Depends(get_db), _ = Depends(require_admin)):
     try:
@@ -104,7 +60,7 @@ def get_product(id: int, db: Session = Depends(get_db), _ = Depends(require_admi
         logger.error(f"Error fetching product {id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to fetch product")
 
-
+## endpoint for update a product
 @router.put("/{id}", response_model=schemas.ProductOut)
 def update_product(id: int, data: schemas.ProductUpdate, db: Session = Depends(get_db), _ = Depends(require_admin)):
     try:
@@ -129,7 +85,7 @@ def update_product(id: int, data: schemas.ProductUpdate, db: Session = Depends(g
         logger.error(f"Failed to update product {id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to update product")
 
-
+## endpoint for deleting a product
 @router.delete("/{id}")
 def delete_product(id: int, db: Session = Depends(get_db), _ = Depends(require_admin)):
     try:

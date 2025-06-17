@@ -14,7 +14,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     role = Column(Enum(RoleEnum), default="user")
-
+    
+    ## relationship
     reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
 
@@ -26,5 +27,6 @@ class PasswordResetToken(Base):
     token = Column(String, nullable=False, unique=True)
     expiration_time = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
-
+    
+    ## relationship
     user = relationship("User", back_populates="reset_tokens")

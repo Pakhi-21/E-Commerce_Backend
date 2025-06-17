@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger("ecommerce_logger")
 router = APIRouter(prefix="/products", tags=["Public-Products"])
 
-
+## Public endpoint to list all products with optional filters
 @router.get("/", response_model=list[ProductOut])
 def list_products(
     category: Optional[str] = None,
@@ -38,6 +38,8 @@ def list_products(
     offset = (page - 1) * page_size
     return query.offset(offset).limit(page_size).all()
 
+
+#view products by keyword in name or description.
 @router.get("/search", response_model=list[ProductOut])
 def search_products(keyword: str = Query(..., min_length=1),db: Session = Depends(get_db)):
     logger.info(f"Searching products with keyword: {keyword}")
@@ -51,6 +53,7 @@ def search_products(keyword: str = Query(..., min_length=1),db: Session = Depend
     
     return query.all()
 
+##public endpoints to view product
 @router.get("/{id}", response_model=ProductOut)
 def get_product_detail(id: int, db: Session = Depends(get_db)):
 

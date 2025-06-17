@@ -32,10 +32,12 @@ def add_to_cart(data: schemas.CartItemCreate,db: Session = Depends(get_db),user=
 
         if (product.stock == 0):
             raise HTTPException(status_code=400, detail="Product is out of stock")
-
+        
+        #Checks if the item already exists 
         item = db.query(CartItem).filter_by(user_id=user.id, product_id=data.product_id).first()
 
         if (item):
+            #update quantity.
             if item.quantity + data.quantity > product.stock:
                 raise HTTPException(status_code=400, detail="Product is out of stock")
             item.quantity += data.quantity
@@ -59,7 +61,7 @@ def add_to_cart(data: schemas.CartItemCreate,db: Session = Depends(get_db),user=
         raise HTTPException(status_code=500, detail="Something went wrong while adding to cart")
 
 
-#update particular item in a cart
+#update particular item quantity in a cart
 @router.put("/{product_id}", response_model=schemas.CartItemOut)
 def update_quantity(
     product_id: int,

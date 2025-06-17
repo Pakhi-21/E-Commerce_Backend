@@ -8,5 +8,6 @@ class CartItem(Base):
     user_id = Column(Integer, index=True)
     product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"))
     quantity = Column(Integer, nullable=False)
-     
+
+    #relationship 
     product = relationship("Product", back_populates="cart_items") 
