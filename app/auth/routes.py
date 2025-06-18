@@ -2,8 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.auth import schemas, utils, models, email_utils
 from app.core.database import SessionLocal
-from jose import JWTError, jwt
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 from app.utils.dependency import get_db, get_current_user, require_admin
@@ -15,14 +13,7 @@ logger = logging.getLogger("ecommerce_logger")
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
-bearer_scheme = HTTPBearer()  
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 #create user & admin
 @router.post("/signup", status_code=201)
