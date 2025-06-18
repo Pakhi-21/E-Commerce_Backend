@@ -22,6 +22,15 @@ class Signup(BaseModel):
         if not (2 <= len(v) <= 100):
             raise ValueError("Name must be between 2 and 100 characters long")
         return v
+    
+    ## email domain specific validator
+    @field_validator('email')
+    def validate_email_domain(cls, value):
+        # Allow only specific TLDs (adjust the list as needed)
+        domain = (".com", ".org", ".net", ".edu", ".in")
+        if not any(value.endswith(tld) for tld in domain):
+            raise ValueError("Email must end with .com, .org, .net, .edu, or .in")
+        return value
 
     ## create custom strong password validator
     @field_validator('password')
